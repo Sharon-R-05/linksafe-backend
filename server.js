@@ -3,10 +3,16 @@ import cors from "cors";
 import puppeteer from "puppeteer";
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(cors());
 
-// Optimized for Render.com
+// Allow all origins for testing
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+
 app.post("/fetch-screen", async (req, res) => {
     const { url } = req.body;
     
@@ -20,12 +26,7 @@ app.post("/fetch-screen", async (req, res) => {
     try {
         browser = await puppeteer.launch({
             headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
         const page = await browser.newPage();
@@ -35,6 +36,7 @@ app.post("/fetch-screen", async (req, res) => {
         const screenshot = await page.screenshot({ encoding: "base64" });
         await browser.close();
 
+        res.setHeader('Content-Type', 'text/plain');
         res.send(`data:image/png;base64,${screenshot}`);
         
     } catch (error) {
@@ -48,7 +50,7 @@ app.get("/health", (req, res) => {
     res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 6969;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`✅ LinkSafe Backend running on port ${PORT}`);
+    console.log(`✅ Backend running on port ${PORT}`);
 });
