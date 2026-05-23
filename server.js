@@ -1,18 +1,38 @@
 import express from "express";
 import cors from "cors";
 import puppeteer from "puppeteer";
+import { execSync } from 'child_process';
 
 const app = express();
 app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(express.json({ limit: '50mb' }));
 
-// Use Chromium from system path or let puppeteer find it
+// Try to find Chrome
+let chromePath = null;
+try {
+    const paths = [
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        process.env.PUPPETEER_EXECUTABLE_PATH
+    ];
+    
+    for (const p of paths) {
+        if (p && execSync(`test -f ${p} && echo "exists"`, { stdio: 'pipe' }).toString().trim() === 'exists') {
+            chromePath = p;
+            console.log(`✅ Found Chrome at: ${chromePath}`);
+            break;
+        }
+    }
+} catch(e) {
+    console.log('⚠️ Chrome not found in system paths');
+}
+
 const browserArgs = [
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--single-process'
+    '--disable-gpu'
 ];
 
 app.post("/fetch-screen", async (req, res) => {
@@ -26,19 +46,19 @@ app.post("/fetch-screen", async (req, res) => {
 
     let browser;
     try {
-        // Launch with specific arguments for Render
-        browser = await puppeteer.launch({
+        const launchOptions = {
             headless: true,
-            args: browserArgs,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
-        });
-
+            args: browserArgs
+        };
+        
+        if (chromePath) {
+            launchOptions.executablePath = chromePath;
+        }
+        
+        browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
-        await page.goto(url, { 
-            waitUntil: 'networkidle2', 
-            timeout: 30000 
-        });
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
         
         const screenshot = await page.screenshot({ encoding: "base64" });
         await browser.close();
