@@ -3,15 +3,17 @@ import cors from "cors";
 import puppeteer from "puppeteer";
 
 const app = express();
-
-// Allow all origins for testing
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
-}));
-
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(express.json({ limit: '50mb' }));
+
+// Use Chromium from system path or let puppeteer find it
+const browserArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--single-process'
+];
 
 app.post("/fetch-screen", async (req, res) => {
     const { url } = req.body;
@@ -24,14 +26,19 @@ app.post("/fetch-screen", async (req, res) => {
 
     let browser;
     try {
+        // Launch with specific arguments for Render
         browser = await puppeteer.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: browserArgs,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
         });
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        await page.goto(url, { 
+            waitUntil: 'networkidle2', 
+            timeout: 30000 
+        });
         
         const screenshot = await page.screenshot({ encoding: "base64" });
         await browser.close();
