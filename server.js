@@ -6,6 +6,7 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
+// Optimized for Render.com
 app.post("/fetch-screen", async (req, res) => {
     const { url } = req.body;
     
@@ -19,7 +20,12 @@ app.post("/fetch-screen", async (req, res) => {
     try {
         browser = await puppeteer.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
         });
 
         const page = await browser.newPage();
@@ -39,10 +45,10 @@ app.post("/fetch-screen", async (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-    res.json({ status: "OK" });
+    res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 6969;
 app.listen(PORT, () => {
-    console.log(`✅ Backend running on port ${PORT}`);
+    console.log(`✅ LinkSafe Backend running on port ${PORT}`);
 });
